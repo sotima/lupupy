@@ -54,18 +54,20 @@ class Lupusec:
             self.headers = {"X-Token": json.loads(response.text)["message"]}
         else:
             _LOGGER.error("Unable to setup Lupusec panel, model not supported.")
-
-        try:
-            self._history_cache = pickle.load(
-                open(home + "/" + CONST.HISTORY_CACHE_NAME, "rb")
-            )
-        except LupusecException as e:
-            _LOGGER.debug(e)
-            self._history_cache = []
-            pickle.dump(
-                self._history_cache, open(home + "/" + CONST.HISTORY_CACHE_NAME, "wb")
-            )
-
+            
+#        Deactivated since it does not work with Homeassistant - the exception which is thrown when the file does not exist, stops HA from setting up the component!
+#        try:
+#            self._history_cache = pickle.load(
+#                open(home + "/" + CONST.HISTORY_CACHE_NAME, "rb")
+#            )
+#        except LupusecException as e:
+#            _LOGGER.debug(e)
+#            self._history_cache = []
+#            pickle.dump(
+#                self._history_cache, open(home + "/" + CONST.HISTORY_CACHE_NAME, "wb")
+#            )
+#       Initialize _history_cache here 
+        self._history_cache = []
         self._panel = self.get_panel()
         self._cacheSensors = None
         self._cacheStampS = time.time()
@@ -158,10 +160,12 @@ class Lupusec:
                 device["device_id"] = device[self.api_device_id]
                 device.pop("cond")
                 device.pop(self.api_device_id)
-                if device["status"] == "{WEB_MSG_DC_OPEN}":
+                # XT1 does not have a {WEB_MSG_DC_OPEN} thus we need the check for CONST.STATUS_OPEN
+                if device["status"] == "{WEB_MSG_DC_OPEN}" or device["status"]==CONST.STATUS_OPEN:
                     print("yes is open " + device["name"])
                     device["status"] = 1
-                if device["status"] == "{WEB_MSG_DC_CLOSE}" or device["status"] == "0":
+                # XT1 does only have an empty string in the "cond"-field of its "json", if the sensor is closed, so we have to check for that also
+                if device["status"] == "{WEB_MSG_DC_CLOSE}" or device["status"] == "0" or device["status"]=="":
                     device["status"] = "Geschlossen"
                 sensors.append(device)
             self._cacheSensors = sensors
